@@ -5,7 +5,9 @@ COPY . .
 RUN go build -trimpath -ldflags='-s -w' -o RealiTLScanner .
 
 FROM alpine:latest
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 COPY --from=build /src/RealiTLScanner .
+# Set default timezone to UTC explicitly
+ENV TZ=UTC
 ENTRYPOINT ["./RealiTLScanner"]
