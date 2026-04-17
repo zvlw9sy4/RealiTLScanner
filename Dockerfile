@@ -10,4 +10,7 @@ WORKDIR /app
 COPY --from=build /src/RealiTLScanner .
 # Set default timezone to UTC explicitly
 ENV TZ=UTC
+# Run as non-root user for better security
+RUN adduser -D -u 1000 scanner && chown scanner:scanner /app/RealiTLScanner
+USER scanner
 ENTRYPOINT ["./RealiTLScanner"]
