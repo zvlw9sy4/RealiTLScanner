@@ -2,65 +2,119 @@ package main
 
 import (
 	"crypto/tls"
-	"log/slog"
+	"fmt"
 	"net"
-	"strconv"
-	"strings"
 	"time"
 )
 
-func ScanTLS(host Host, out chan<- string, geo *Geo) {
-	if host.IP == nil {
-		ip, err := LookupIP(host.Origin)
-		if err != nil {
-			slog.Debug("Failed to get IP from the origin", "origin", host.Origin, "err", err)
-			return
-		}
-		host.IP = ip
+// ScanResult holds the result of a TLS scan for a single host.
+type ScanResult struct {
+	IP          string
+	Port        string
+	ServerName  string
+	HasReality  bool
+	CertExpiry  time.Time
+	Fingerprint string
+	Error       error
+}
+
+// Scanner performs TLS/REALITY detection scans.
+type Scanner struct {
+	Timeout    time.Duration
+	Concurrent int
+	Geo        *Geo
+}
+
+// NewScanner creates a new Scanner with sensible defaults.
+func NewScanner(timeout time.Duration, concurrent int, geo *Geo) *Scanner {
+	return &Scanner{
+		Timeout:    timeout,
+		Concurrent: concurrent,
+		Geo:        geo,
 	}
-	hostPort := net.JoinHostPort(host.IP.String(), strconv.Itoa(port))
-	conn, err := net.DialTimeout("tcp", hostPort, time.Duration(timeout)*time.Second)
+}
+
+// Scan scans a list of targets concurrently and returns results.
+func (s *Scanner) Scan(targets []string, port string) []ScanResult {
+	sem := make(chan struct{}, s.Concurrent)
+	resultCh := make(chan ScanResult, len(targets))
+
+	for _, ip := range targets {
+		sem <- struct{}{}
+		go func(ip string) {
+			defer func() { <-sem }()
+			resultCh <- s.scanOne(ip, port)
+		}(ip)
+	}
+
+	// Drain semaphore to wait for all goroutines.
+	for i := 0; i < s.Concurrent; i++ {
+		sem <- struct{}{}
+	}
+	close(resultCh)
+
+	var results []ScanResult
+	for r := range resultCh {
+		results = append(results, r)
+	}
+	return results
+}
+
+// scanOne performs a TLS handshake against a single host and detects REALITY.
+func (s *Scanner) scanOne(ip, port string) ScanResult {
+	addr := net.JoinHostPort(ip, port)
+	result := ScanResult{IP: ip, Port: port}
+
+	dialer := &net.Dialer{Timeout: s.Timeout}
+	conn, err := tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{
+		InsecureSkipVerify: true, // We want to inspect even self-signed/REALITY certs.
+		MinVersion:         tls.VersionTLS12,
+	})
 	if err != nil {
-		slog.Debug("Cannot dial", "target", hostPort)
-		return
+		result.Error = fmt.Errorf("dial: %w", err)
+		return result
 	}
 	defer conn.Close()
-	err = conn.SetDeadline(time.Now().Add(time.Duration(timeout) * time.Second))
-	if err != nil {
-		slog.Error("Error setting deadline", "err", err)
-		return
+
+	state := conn.ConnectionState()
+	if len(state.PeerCertificates) == 0 {
+		result.Error = fmt.Errorf("no peer certificates")
+		return result
 	}
-	tlsCfg := &tls.Config{
-		InsecureSkipVerify: true,
-		NextProtos:         []string{"h2", "http/1.1"},
-		CurvePreferences:   []tls.CurveID{tls.X25519},
+
+	cert := state.PeerCertificates[0]
+	result.CertExpiry = cert.NotAfter
+	result.Fingerprint = fingerprintCert(cert.Raw)
+	result.ServerName = cert.Subject.CommonName
+	result.HasReality = detectReality(state)
+
+	return result
+}
+
+// detectReality heuristically detects REALITY protocol by examining TLS state.
+// REALITY proxies typically present certificates that don't chain to a known CA
+// and use specific TLS extensions.
+func detectReality(state tls.ConnectionState) bool {
+	if len(state.PeerCertificates) == 0 {
+		return false
 	}
-	if host.Type == HostTypeDomain {
-		tlsCfg.ServerName = host.Origin
+	cert := state.PeerCertificates[0]
+	// REALITY certs are self-signed or have mismatched issuer/subject.
+	if cert.Issuer.String() == cert.Subject.String() {
+		return true
 	}
-	c := tls.Client(conn, tlsCfg)
-	err = c.Handshake()
-	if err != nil {
-		slog.Debug("TLS handshake failed", "target", hostPort)
-		return
+	// Check for suspiciously short validity windows typical of REALITY.
+	validity := cert.NotAfter.Sub(cert.NotBefore)
+	if validity < 24*time.Hour {
+		return true
 	}
-	state := c.ConnectionState()
-	alpn := state.NegotiatedProtocol
-	domain := state.PeerCertificates[0].Subject.CommonName
-	issuers := strings.Join(state.PeerCertificates[0].Issuer.Organization, " | ")
-	log := slog.Info
-	feasible := true
-	geoCode := geo.GetGeo(host.IP)
-	if state.Version != tls.VersionTLS13 || alpn != "h2" || len(domain) == 0 || len(issuers) == 0 {
-		// not feasible
-		log = slog.Debug
-		feasible = false
-	} else {
-		out <- strings.Join([]string{host.IP.String(), host.Origin, domain, "\"" + issuers + "\"", geoCode}, ",") +
-			"\n"
+	return false
+}
+
+// fingerprintCert returns a short hex fingerprint of raw DER certificate bytes.
+func fingerprintCert(raw []byte) string {
+	if len(raw) < 4 {
+		return ""
 	}
-	log("Connected to target", "feasible", feasible, "ip", host.IP.String(),
-		"origin", host.Origin,
-		"tls", tls.VersionName(state.Version), "alpn", alpn, "cert-domain", domain, "cert-issuer", issuers,
-		"geo", geoCode)
+	return fmt.Sprintf("%02x%02x%02x%02x", raw[0], raw[1], raw[2], raw[3])
 }
