@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"time"
@@ -68,7 +70,7 @@ func (s *Scanner) scanOne(ip, port string) ScanResult {
 	dialer := &net.Dialer{Timeout: s.Timeout}
 	conn, err := tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{
 		InsecureSkipVerify: true, // We want to inspect even self-signed/REALITY certs.
-		MinVersion:         tls.VersionTLS12,
+		MinVersion:         tls.VersionTLS13, // Require TLS 1.3; REALITY only runs on 1.3 anyway.
 	})
 	if err != nil {
 		result.Error = fmt.Errorf("dial: %w", err)
@@ -111,10 +113,11 @@ func detectReality(state tls.ConnectionState) bool {
 	return false
 }
 
-// fingerprintCert returns a short hex fingerprint of raw DER certificate bytes.
+// fingerprintCert returns a SHA-256 hex fingerprint of raw DER certificate bytes.
 func fingerprintCert(raw []byte) string {
 	if len(raw) < 4 {
 		return ""
 	}
-	return fmt.Sprintf("%02x%02x%02x%02x", raw[0], raw[1], raw[2], raw[3])
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:])
 }
