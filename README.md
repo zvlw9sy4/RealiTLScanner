@@ -35,6 +35,7 @@ It is recommended to run this tool locally, as running the scanner in the cloud 
 ./RealiTLScanner -addr www.microsoft.com -out file.csv
 
 # Set a thread count, default: 1
+# Note: I personally use -thread 4 as a safe default to avoid overwhelming targets
 ./RealiTLScanner -addr wiki.ubuntu.com -thread 10
 
 # Set a timeout for each scan, default: 10 (seconds)
@@ -59,11 +60,7 @@ To enable Geo IP information, place a MaxMind GeoLite2/GeoIP2 Country Database i
 
 ## Demo
 
-Example stdout:
-
-```bash
-2024/02/08 20:51:10 INFO Started all scanning threads time=2024-02-08T20:51:10.017+08:00
-2024/02/08 20:51:10 INFO Connected to target feas172.103.9 tls=1.3 alpn=h2 domain=rocky-linux.tk issuer="Let's Encrypt"
+20:51:10.017+=1.3 alpn=h2 domain=rocky-linux.tk issuer="Let's Encrypt"
 2024/02/08 20:51:10 INFO Connected to target feasible=true host=107.172.103.11 tls=1.3 alpn=h2 domain=rn.allinai.dev issuer="Let's Encrypt"
 2024/02/08 20:51:13 INFO Connected to target feasible=true host=107.172.103.16 tls=1.3 alpn=h2 domain=san.hiddify01.foshou.vip issuer="Let's Encrypt"
 2024/02/08 20:51:13 INFO Connected to target feasible=true host=107.172.103.19 tls=1.3 alpn=h2 domain=mgzx19.cnscholar.top issuer="Let's Encrypt"
@@ -77,6 +74,5 @@ Example output file:
 
 ```csv
 IP,ORIGIN,CERT_DOMAIN,CERT_ISSUER,GEO_CODE
-202.70.64.2,ntc.net.np,*.ntc.net.np,"GlobalSign nv-sa",NP
-196.200.160.70,mirror.marwan.ma
+202.70.64.2,ntc.net.np,*
 ```
