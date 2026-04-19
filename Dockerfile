@@ -15,4 +15,5 @@ RUN adduser -D -u 1000 scanner && chown scanner:scanner /app/RealiTLScanner
 USER scanner
 # Pass any arguments directly to the binary (e.g. -thread, -timeout flags)
 ENTRYPOINT ["./RealiTLScanner"]
-CMD ["-thread", "4"]
+# Increased default thread count for faster scanning on my machine
+CMD ["-thread", "8"]
