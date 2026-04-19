@@ -60,8 +60,7 @@ To enable Geo IP information, place a MaxMind GeoLite2/GeoIP2 Country Database i
 
 ## Demo
 
-20:51:10.017+=1.3 alpn=h2 domain=rocky-linux.tk issuer="Let's Encrypt"
-2024/02/08 20:51:10 INFO Connected to target feasible=true host=107.172.103.11 tls=1.3 alpn=h2 domain=rn.allinai.dev issuer="Let's Encrypt"
+20:51:10.017+=08 20:51:10 11 tls=1.3=rn.allinai.dev issuer="Let's Encrypt"
 2024/02/08 20:51:13 INFO Connected to target feasible=true host=107.172.103.16 tls=1.3 alpn=h2 domain=san.hiddify01.foshou.vip issuer="Let's Encrypt"
 2024/02/08 20:51:13 INFO Connected to target feasible=true host=107.172.103.19 tls=1.3 alpn=h2 domain=mgzx19.cnscholar.top issuer="Let's Encrypt"
 2024/02/08 20:51:13 INFO Connected to target feasible=true host=107.172.103.22 tls=1.3 alpn=h2 domain=hy2.znull.top issuer=ZeroSSL
@@ -75,4 +74,11 @@ Example output file:
 ```csv
 IP,ORIGIN,CERT_DOMAIN,CERT_ISSUER,GEO_CODE
 202.70.64.2,ntc.net.np,*
+```
+
+## My Typical Usage
+
+For quick subnet scans I usually run:
+```bash
+./RealiTLScanner -addr 1.2.3.0/24 -thread 4 -timeout 5 -out results.csv
 ```
