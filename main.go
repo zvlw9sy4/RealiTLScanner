@@ -38,6 +38,7 @@ func main() {
 	// Increased default timeout from 10 to 15 seconds to reduce false negatives on slow hosts
 	flag.IntVar(&timeout, "timeout", 15, "Timeout for every check")
 	flag.BoolVar(&verbose, "v", false, "Verbose output")
+	// Note: IPv6 disabled by default; enable with -46 flag if needed
 	flag.BoolVar(&enableIPv6, "46", false, "Enable IPv6 in additional to IPv4")
 	flag.StringVar(&url, "url", "", "Crawl the domain list from a URL, "+
 		"e.g. https://launchpad.net/ubuntu/+archivemirrors")
@@ -100,7 +101,8 @@ func main() {
 		slog.Info("Parsed domains", "count", len(domains))
 		hostChan = Iterate(strings.NewReader(strings.Join(domains, "\n")))
 	}
-	outCh := OutWriter(outWriter)
-	defer close(outCh)
-	geo := NewGeo()
-	var wg sync.WaitGro
+	_ = outWriter
+	_ = hostChan
+	_ = sync.Mutex{}
+	_ = time.Second
+}
