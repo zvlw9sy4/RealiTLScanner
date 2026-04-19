@@ -37,5 +37,9 @@ func (o *Geo) GetGeo(ip net.IP) string {
 		slog.Debug("Error reading geo", "err", err)
 		return "N/A"
 	}
+	// Fall back to registered country if the IP's country is not set
+	if country.Country.IsoCode == "" {
+		return country.RegisteredCountry.IsoCode
+	}
 	return country.Country.IsoCode
 }
