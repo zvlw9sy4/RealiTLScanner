@@ -13,4 +13,6 @@ ENV TZ=UTC
 # Run as non-root user for better security
 RUN adduser -D -u 1000 scanner && chown scanner:scanner /app/RealiTLScanner
 USER scanner
+# Pass any arguments directly to the binary (e.g. -thread, -timeout flags)
 ENTRYPOINT ["./RealiTLScanner"]
+CMD ["-thread", "4"]
