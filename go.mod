@@ -11,3 +11,6 @@ require (
 
 // Personal fork for learning TLS fingerprinting techniques.
 // Upstream: https://github.com/XTLS/RealiTLScanner
+// Notes:
+//   - studying how JA3/JA4 fingerprints are collected
+//   - may experiment with additional cipher suite detection
